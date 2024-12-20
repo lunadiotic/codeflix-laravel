@@ -12,4 +12,9 @@ class UserDevice extends Model
         'device_type',
         'last_login',
     ];
+
+    public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
 }

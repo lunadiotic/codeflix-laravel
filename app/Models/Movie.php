@@ -20,4 +20,9 @@ class Movie extends Model
         'url_1080',
         'url_4k',
     ];
+
+    public function categories(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Category::class);
+    }
 }

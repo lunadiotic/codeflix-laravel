@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Plan extends Model
 {
@@ -13,4 +14,14 @@ class Plan extends Model
         'resolution',
         'max_devices',
     ];
+
+    public function memberships(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Membership::class);
+    }
+
+    public function users(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'memberships', 'plan_id', 'user_id');
+    }
 }
