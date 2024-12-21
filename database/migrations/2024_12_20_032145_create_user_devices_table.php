@@ -15,10 +15,14 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->string('device_name');
-            $table->string('device_id');
-            $table->string('device_type');
-            $table->timestamp('last_active');
-            $table->boolean('is_active');
+            $table->string('device_id')->unique();
+            $table->string('device_type')->nullable();
+            $table->string('platform')->nullable();
+            $table->string('platform_version')->nullable();
+            $table->string('browser')->nullable();
+            $table->string('browser_version')->nullable();
+            $table->timestamp('last_active')->nullable();
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
     }

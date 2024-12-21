@@ -54,7 +54,7 @@ class User extends Authenticatable
     public function hasMembershipPlan(): bool
     {
         return $this->memberships()
-            ->where('status', 'active')
+            ->where('active', true)
             ->where('end_date', '>', now())
             ->exists();
     }

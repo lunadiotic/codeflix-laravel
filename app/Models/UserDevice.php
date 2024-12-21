@@ -11,8 +11,12 @@ class UserDevice extends Model
         'device_name',
         'device_id',
         'device_type',
+        'platform',
+        'platform_version',
+        'browser',
+        'browser_version',
         'last_active',
-        'is_active',
+        'is_active'
     ];
 
     protected $casts = [

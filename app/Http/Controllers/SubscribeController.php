@@ -28,11 +28,12 @@ class SubscribeController extends Controller
         return view('subscription.checkout', compact('plan', 'user'));
     }
 
-    public function subscribe(Request $request, Plan $plan)
+    public function subscribe(Request $request)
     {
         $user = Auth::user();
+        $plan = Plan::find($request->plan_id);
         $user->memberships()->create([
-            'plan_id' => $request->plan_id,
+            'plan_id' => $plan->id,
             'start_date' => now(),
             'end_date' => now()->addDays($plan->duration),
             'active' => true,
