@@ -14,9 +14,11 @@ return new class extends Migration
         Schema::create('user_devices', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->string('device_name');
             $table->string('device_id');
             $table->string('device_type');
-            $table->timestamp('last_login');
+            $table->timestamp('last_active');
+            $table->boolean('is_active');
             $table->timestamps();
         });
     }

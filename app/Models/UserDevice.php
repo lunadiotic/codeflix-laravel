@@ -8,9 +8,16 @@ class UserDevice extends Model
 {
     protected $fillable = [
         'user_id',
+        'device_name',
         'device_id',
         'device_type',
-        'last_login',
+        'last_active',
+        'is_active',
+    ];
+
+    protected $casts = [
+        'last_active' => 'datetime',
+        'is_active' => 'boolean'
     ];
 
     public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo

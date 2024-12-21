@@ -3,11 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Models\Plan;
+use App\Services\DeviceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class SubscribeController extends Controller
 {
+    protected $deviceService;
+
+    public function __construct(DeviceService $deviceService)
+    {
+        $this->deviceService = $deviceService;
+    }
+
     public function showPlans()
     {
         $plans = Plan::all();
@@ -29,6 +37,8 @@ class SubscribeController extends Controller
             'end_date' => now()->addDays($plan->duration),
             'active' => true,
         ]);
+        // implement device handler service here
+        $this->deviceService->registerDevice($user, $request);
         return redirect()->route('subscription.success');
     }
 
