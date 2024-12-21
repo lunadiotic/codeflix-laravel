@@ -27,7 +27,7 @@
                     <p class="mb-0 text-green">{{ $plan->max_devices}} Device</p>
                 </div>
                 <div class="mt-auto">
-                    <a href="{{ route('subscription.plans', ['plan' => 'basic']) }}" class="btn btn-green w-100">Choose
+                    <a href="{{ route('subscription.checkout', $plan) }}" class="btn btn-green w-100">Choose
                         Plan</a>
                 </div>
             </div>

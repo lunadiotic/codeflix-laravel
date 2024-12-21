@@ -28,6 +28,10 @@
             color: #19BC9B;
         }
 
+        .border-green {
+            border-color: #19BC9B;
+        }
+
         .btn-green {
             background-color: #19BC9B;
             border-color: #19BC9B;
