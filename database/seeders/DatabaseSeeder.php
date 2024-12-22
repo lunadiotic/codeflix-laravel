@@ -19,7 +19,8 @@ class DatabaseSeeder extends Seeder
             PlanSeeder::class,
             CategorySeeder::class,
             MovieSeeder::class,
-            CategoryMovieSeeder::class
+            CategoryMovieSeeder::class,
+            RatingSeeder::class
         ]);
     }
 }
