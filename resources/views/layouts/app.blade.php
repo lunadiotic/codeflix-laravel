@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="{{ asset('assets/css/app.css')}}">
     <link rel="stylesheet" href="{{ asset('assets/fontawesome-free-6.6.0-web/css/all.css')}}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
+    @stack('styles')
 </head>
 
 <body>
@@ -59,6 +60,7 @@
         },
       });
     </script>
+    @stack('scripts')
 </body>
 
 </html>

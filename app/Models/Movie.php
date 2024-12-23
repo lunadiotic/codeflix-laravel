@@ -21,6 +21,38 @@ class Movie extends Model
         'url_4k',
     ];
 
+    protected $appends = ['average_rating'];
+
+    protected $casts = [
+        'release_date' => 'date',
+    ];
+
+    public function getStreamingUrl(string $planResolution): string
+    {
+        return match ($planResolution) {
+            '720p' => $this->url_720,
+            '1080p' => $this->url_1080,
+            '4k' => $this->url_4k,
+            default => $this->url_720, // Default to lowest quality if plan not found
+        };
+    }
+
+    public function getFormattedDurationAttribute()
+    {
+        $hours = floor($this->duration / 60);
+        $minutes = $this->duration % 60;
+
+        $formatted = '';
+        if ($hours > 0) {
+            $formatted .= "{$hours}h ";
+        }
+        if ($minutes > 0 || $hours == 0) {
+            $formatted .= "{$minutes}m";
+        }
+
+        return trim($formatted);
+    }
+
     public function categories(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
         return $this->belongsToMany(Category::class);
