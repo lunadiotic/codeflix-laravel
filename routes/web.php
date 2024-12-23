@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\MovieController;
 use App\Http\Controllers\SubscribeController;
 use Illuminate\Support\Facades\Route;
@@ -13,6 +14,7 @@ Route::get('/home', [MovieController::class, 'index'])->middleware(['auth', 'che
 Route::group(['middleware' => ['auth', 'check.device']], function () {
     Route::get('/movies', [MovieController::class, 'index'])->name('movies.index');
     Route::get('/movies/{movie}', [MovieController::class, 'show'])->name('movies.show');
+    Route::get('/category/{category}', [CategoryController::class, 'show'])->name('category.show');
 });
 
 Route::get('/subcription/plans', [SubscribeController::class, 'showPlans'])->name('subscription.plans');

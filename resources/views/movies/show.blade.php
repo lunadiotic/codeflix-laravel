@@ -22,7 +22,9 @@
             </p>
             <div class="badge-category">
                 @foreach ($movie->categories as $category)
-                <span class="badge rounded-pill badge-category-movie">{{ $category->title }}</span>
+                <a href="{{ route('category.show', $category->id) }}" class="badge rounded-pill badge-category-movie"
+                    style="decoration: none">{{
+                    $category->title }}</a>
                 @endforeach
             </div>
         </div>
