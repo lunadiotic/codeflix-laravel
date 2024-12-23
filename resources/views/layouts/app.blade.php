@@ -10,6 +10,33 @@
     <link rel="stylesheet" href="{{ asset('assets/fontawesome-free-6.6.0-web/css/all.css')}}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
     @stack('styles')
+    <style>
+        .search-btn {
+            position: absolute;
+            right: 15px;
+            /* Jarak dari sisi kanan */
+            top: 50%;
+            transform: translateY(-50%);
+            background: transparent;
+            border: none;
+            padding: 0;
+            color: inherit;
+            cursor: pointer;
+        }
+
+        .search-box {
+            padding-right: 45px;
+            /* Memberi ruang agar ikon tidak tumpang tindih */
+            border-radius: 30px;
+            /* Efek rounded seperti di gambar */
+            background-color: #111a21;
+            border: none;
+        }
+
+        .search-icon {
+            font-size: 1.2rem;
+        }
+    </style>
 </head>
 
 <body>

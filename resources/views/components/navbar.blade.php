@@ -5,14 +5,18 @@
             <!-- <span class="navbar-toggler-icon"></span> -->
             <i class="text-white fa-solid fa-bars"></i>
         </button>
-        <a class="navbar-brand" href="#">
+        <a class="navbar-brand" href="/">
             <img class="navbar-icon" src="{{ asset('assets/img/codeflix_logo.png') }}" alt="">
         </a>
         <div class="collapse navbar-collapse" id="navbarTogglerDemo03">
             <x-category-nav />
-            <form class="d-flex me-md-5" role="search">
-                <input class="form-control search-box" type="search" placeholder="Cari Disini" aria-label="Search">
-                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <form class="d-flex me-md-5 position-relative" role="search" method="GET"
+                action="{{ route('movies.search') }}">
+                <input class="text-white form-control search-box pe-5" type="search" name="q" placeholder="Cari Disini"
+                    value="{{ request('q') }}" aria-label="Search">
+                <button type="submit" class="search-btn">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                </button>
             </form>
             <ul class="pt-3 nav-icon d-flex">
                 <li class="dropdown me-3">

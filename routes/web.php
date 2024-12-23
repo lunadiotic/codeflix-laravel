@@ -5,14 +5,13 @@ use App\Http\Controllers\MovieController;
 use App\Http\Controllers\SubscribeController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
 
 Route::get('/home', [MovieController::class, 'index'])->middleware(['auth', 'check.device'])->name('home');
 
 Route::group(['middleware' => ['auth', 'check.device']], function () {
+    Route::get('/', [MovieController::class, 'index'])->name('welcome');
     Route::get('/movies', [MovieController::class, 'index'])->name('movies.index');
+    Route::get('/movies/search', [MovieController::class, 'search'])->name('movies.search');
     Route::get('/movies/{movie}', [MovieController::class, 'show'])->name('movies.show');
     Route::get('/category/{category}', [CategoryController::class, 'show'])->name('category.show');
 });
