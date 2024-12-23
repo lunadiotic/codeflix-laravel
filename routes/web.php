@@ -10,7 +10,7 @@ Route::get('/home', [MovieController::class, 'index'])->middleware(['auth', 'che
 
 Route::group(['middleware' => ['auth', 'check.device']], function () {
     Route::get('/', [MovieController::class, 'index'])->name('welcome');
-    Route::get('/movies', [MovieController::class, 'index'])->name('movies.index');
+    Route::get('/movies', [MovieController::class, 'all'])->name('movies.index');
     Route::get('/movies/search', [MovieController::class, 'search'])->name('movies.search');
     Route::get('/movies/{movie}', [MovieController::class, 'show'])->name('movies.show');
     Route::get('/category/{category}', [CategoryController::class, 'show'])->name('category.show');
