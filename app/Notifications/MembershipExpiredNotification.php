@@ -2,10 +2,11 @@
 
 namespace App\Notifications;
 
+use App\Mail\MembershipExpiredMail;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Mail\SentMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\Mail;
 
 class MembershipExpiredNotification extends Notification
 {
@@ -34,15 +35,10 @@ class MembershipExpiredNotification extends Notification
     /**
      * Get the mail representation of the notification.
      */
-    public function toMail(object $notifiable): MailMessage
+    public function toMail(object $notifiable): SentMessage|null
     {
-        return (new MailMessage)
-            ->subject('Membership Expired')
-            ->greeting('Hello!')
-            ->line('Your membership has expired.')
-            ->line('Expired Date: ' . $this->membership->end_date->format('d M Y'))
-            ->action('Renew Membership', url('/renew'))
-            ->line('Thank you for using our application!');
+        return Mail::to($notifiable->email)
+            ->send(new MembershipExpiredMail($this->membership));
     }
 
     /**
