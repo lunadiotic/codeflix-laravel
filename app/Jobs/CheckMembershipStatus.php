@@ -2,13 +2,18 @@
 
 namespace App\Jobs;
 
+use App\Events\MembershipHasExpired;
 use App\Models\Membership;
+use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
 
 class CheckMembershipStatus implements ShouldQueue
 {
-    use Queueable;
+    use Batchable, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $timeout = 120;
     public $tries = 3;
@@ -36,7 +41,7 @@ class CheckMembershipStatus implements ShouldQueue
                     ]);
 
                     // Optional: Kirim notifikasi ke user
-                    // event(new MembershipExpired($membership));
+                    event(new MembershipHasExpired($membership));
                 }
             });
     }
