@@ -1,8 +1,10 @@
 <?php
 
+use App\Events\MembershipHasExpired;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\MovieController;
 use App\Http\Controllers\SubscribeController;
+use App\Models\Membership;
 use Illuminate\Support\Facades\Route;
 
 
@@ -20,3 +22,12 @@ Route::get('/subcription/plans', [SubscribeController::class, 'showPlans'])->nam
 Route::get('/subcription/subscribe/success', [SubscribeController::class, 'subscribeSuccess'])->name('subscription.success');
 Route::get('/subcription/subscribe/{plan}', [SubscribeController::class, 'checkoutPlan'])->name('subscription.checkout');
 Route::post('/subcription/subscribe', [SubscribeController::class, 'subscribe'])->name('subscription.subscribe');
+
+
+Route::get('/test-expired', function () {
+    $membership = Membership::find(1);
+
+    event(new MembershipHasExpired($membership));
+
+    return "Event fired, check MailHog";
+});
