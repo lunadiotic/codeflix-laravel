@@ -3,6 +3,7 @@
 use App\Events\MembershipHasExpired;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\MovieController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SubscribeController;
 use App\Models\Membership;
 use Illuminate\Support\Facades\Route;
@@ -16,6 +17,8 @@ Route::group(['middleware' => ['auth', 'check.device']], function () {
     Route::get('/movies/search', [MovieController::class, 'search'])->name('movies.search');
     Route::get('/movies/{movie}', [MovieController::class, 'show'])->name('movies.show');
     Route::get('/category/{category}', [CategoryController::class, 'show'])->name('category.show');
+
+    Route::get('/profile/overview', [ProfileController::class, 'overview'])->name('profile.overview');
 });
 
 Route::get('/subcription/plans', [SubscribeController::class, 'showPlans'])->name('subscription.plans');
