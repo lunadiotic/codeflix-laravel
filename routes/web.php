@@ -5,6 +5,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\MovieController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SubscribeController;
+use App\Http\Controllers\TransactionController;
 use App\Models\Membership;
 use Illuminate\Support\Facades\Route;
 
@@ -26,6 +27,7 @@ Route::get('/subcription/subscribe/success', [SubscribeController::class, 'subsc
 Route::get('/subcription/subscribe/{plan}', [SubscribeController::class, 'checkoutPlan'])->name('subscription.checkout');
 Route::post('/subcription/subscribe', [SubscribeController::class, 'subscribe'])->name('subscription.subscribe');
 
+Route::post('/checkout', [TransactionController::class, 'checkout'])->name('checkout');
 
 Route::get('/test-expired', function () {
     $membership = Membership::find(1);
