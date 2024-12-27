@@ -56,46 +56,78 @@
 <script src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="{{ config('midtrans.client_key') }}">
 </script>
 <script>
-    const payButton = document.querySelector('#pay-button');
-    payButton.addEventListener('click', function(e) {
+    function handlePayment(data) {
+        if (data.status === 'success') {
+            const validationToken = data.validation_token;
+
+            window.snap.pay(data.snap_token, {
+                onSuccess: async function(result) {
+                    try {
+                        // Kirim request untuk register device
+                        const response = await fetch('/transaction/success', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                            },
+                            body: JSON.stringify({
+                                order_id: result.order_id,
+                                validation_token: validationToken,
+                                transaction_id: result.transaction_id
+                            })
+                        });
+
+                        const responseData = await response.json();
+
+                        console.log(responseData);
+
+                        if (responseData.status === 'success') {
+                            window.location.href = responseData.redirect_url;
+                        } else {
+                            throw new Error(responseData.message);
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        alert('Failed to process device registration. Please contact support.');
+                        window.location.href = '/';
+                    }
+                },
+                onPending: function(result) {
+                    window.location.href = '/payment/pending';
+                },
+                onError: function(result) {
+                    window.location.href = '/payment/error';
+                },
+                onClose: function() {
+                    alert('You closed the payment window without completing the payment');
+                }
+            });
+        } else {
+            alert('Payment failed to initialize');
+        }
+    }
+    document.getElementById('pay-button').addEventListener('click', async function(e) {
         e.preventDefault();
 
-        fetch('/checkout', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-            },
-            body: JSON.stringify({
-                plan_id: '{{ $plan->id }}',
-                amount: '{{ $plan->price * 1.1 }}'
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                window.snap.pay(data.snap_token, {
-                    onSuccess: function(result) {
-                        window.location.href = '/subcription/subscribe/success';
-                    },
-                    onPending: function(result) {
-                        window.location.href = '/payment/pending';
-                    },
-                    onError: function(result) {
-                        window.location.href = '/payment/error';
-                    },
-                    onClose: function() {
-                        alert('You closed the payment window without completing the payment');
-                    }
-                });
-            } else {
-                alert('Payment failed to initialize');
-            }
-        })
-        .catch(error => {
+        try {
+            const response = await fetch('/transaction/checkout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({
+                    plan_id: '{{ $plan->id }}',
+                    amount: '{{ $plan->price * 1.1 }}'
+                })
+            });
+
+            const data = await response.json();
+            handlePayment(data);
+        } catch (error) {
             console.error('Error:', error);
-            alert('Something went wrong');
-        });
+            alert('Failed to initialize payment');
+        }
     });
 </script>
 @endsection

@@ -6,8 +6,10 @@ use App\Models\Transaction;
 use App\Services\DeviceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Midtrans\Config;
 use Midtrans\Snap;
 
@@ -29,6 +31,12 @@ class TransactionController extends Controller
     public function checkout(Request $request)
     {
         $user = Auth::user();
+
+        // Generate token untuk validasi success callback
+        $token = Str::random(32);
+
+        // Simpan token di cache dengan waktu expired 30 menit
+        Cache::put('payment_token_' . $user->id, $token, now()->addMinutes(30));
 
         // Validasi request
         $request->validate([
@@ -76,6 +84,7 @@ class TransactionController extends Controller
             return response()->json([
                 'status' => 'success',
                 'snap_token' => $snapToken,
+                'validation_token' => $token
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -113,9 +122,6 @@ class TransactionController extends Controller
                                 'active' => true,
                             ]);
 
-                            // Register device
-                            $this->deviceService->registerDevice($user, $request);
-
                             // Update order status
                             $transaction->update([
                                 'payment_status' => 'success',
@@ -139,5 +145,56 @@ class TransactionController extends Controller
         }
 
         return response()->json(['status' => 'error'], 404);
+    }
+
+    public function handleSuccess(Request $request)
+    {
+        $request->validate([
+            'order_id' => 'required|string',
+            'validation_token' => 'required|string',
+        ]);
+
+        $user = Auth::user();
+
+        // Validasi token
+        $validToken = Cache::get('payment_token_' . $user->id);
+
+        if (!$validToken || $validToken !== $request->validation_token) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Invalid request'
+            ], 403);
+        }
+
+        try {
+            $transaction = Transaction::with('plan')->where('transaction_number', $request->order_id)->firstOrFail();
+            $maxDevices = $transaction->plan->max_devices;
+
+            // Set payment registration mode
+            $this->deviceService->setPaymentRegistration(true, $maxDevices);
+
+            // Register device
+            $this->deviceService->registerDevice($user);
+
+            // Hapus token setelah berhasil
+            Cache::forget('payment_token_' . $user->id);
+
+            // Reset payment registration mode
+            $this->deviceService->setPaymentRegistration(false);
+
+            // Hapus token
+            Cache::forget('payment_token_' . $user->id);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Device registered successfully',
+                'redirect_url' => route('subscription.success')
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 }

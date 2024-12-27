@@ -6,76 +6,147 @@ use App\Models\User;
 use App\Models\UserDevice;
 use Illuminate\Support\Str;
 use Jenssegers\Agent\Agent;
+use Illuminate\Support\Carbon;
 
+/**
+ * Service class untuk mengelola device yang digunakan user
+ * Mencakup registrasi device baru, aktivasi/deaktivasi, dan pengecekan device limit
+ */
 class DeviceService
 {
-    protected $agent;
+    /**
+     * Konstanta untuk tipe-tipe device yang didukung
+     * Digunakan untuk standardisasi nilai device_type di database
+     */
+    private const DEVICE_TYPES = [
+        'desktop' => 'desktop',
+        'phone' => 'phone',
+        'tablet' => 'tablet',
+        'unknown' => 'unknown'
+    ];
 
-    public function __construct()
+    /**
+     * Flag untuk menandai apakah sedang dalam proses registrasi pembayaran
+     * Jika true, beberapa validasi device limit akan dilewati
+     */
+    private bool $isPaymentRegistration = false;
+
+    /**
+     * Jumlah maksimal device yang diizinkan saat registrasi pembayaran
+     * Nilai ini akan override max_devices dari plan user saat isPaymentRegistration = true
+     */
+    private ?int $paymentPlanMaxDevices = null;
+
+    /**
+     * Instance dari Jenssegers\Agent untuk deteksi informasi browser dan device
+     */
+    private Agent $agent;
+
+    /**
+     * Constructor service dengan dependency injection Agent
+     */
+    public function __construct(Agent $agent)
     {
-        $this->agent = new Agent();
+        $this->agent = $agent;
     }
 
-    public function registerDevice(User $user, $request)
+    /**
+     * Mengatur flag payment registration dan maksimal device yang diizinkan
+     *
+     * @param bool $status Status payment registration
+     * @param int|null $maxDevices Jumlah maksimal device yang diizinkan
+     */
+    public function setPaymentRegistration(bool $status, ?int $maxDevices = null): void
     {
-        // Cek apakah device dengan karakteristik yang sama sudah ada
+        $this->isPaymentRegistration = $status;
+        $this->paymentPlanMaxDevices = $maxDevices;
+    }
+
+    /**
+     * Mendaftarkan device baru atau mengaktifkan device yang sudah ada
+     *
+     * @param User $user User yang mendaftarkan device
+     * @return UserDevice Device yang berhasil didaftarkan/diaktifkan
+     */
+    public function registerDevice(User $user): UserDevice
+    {
         $deviceInfo = $this->getDeviceInfo();
         $existingDevice = $this->findExistingDevice($user, $deviceInfo);
 
         if ($existingDevice) {
-            // Jika device sudah ada, aktifkan kembali dan update last_active
-            $existingDevice->update([
-                'is_active' => true,
-                'last_active' => now()
-            ]);
-            session(['device_id' => $existingDevice->device_id]);
-            return $existingDevice;
+            return $this->activateExistingDevice($existingDevice);
         }
 
-        // Jika device baru
-        $deviceId = $this->generateDeviceId();
+        if (!$this->isPaymentRegistration) {
+            $this->deactivateExcessDevices($user);
+        }
 
-        // Nonaktifkan device lama jika melebihi batas
-        $this->deactivateExcessDevices($user);
-
-        $device = UserDevice::create([
-            'user_id' => $user->id,
-            'device_name' => $deviceInfo['device_name'],
-            'device_id' => $deviceId,
-            'device_type' => $deviceInfo['device_type'],
-            'platform' => $deviceInfo['platform'],
-            'platform_version' => $deviceInfo['platform_version'],
-            'browser' => $deviceInfo['browser'],
-            'browser_version' => $deviceInfo['browser_version'],
-            'last_active' => now(),
-            'is_active' => true
-        ]);
-
-        session(['device_id' => $deviceId]);
-        return $device;
+        return $this->createNewDevice($user, $deviceInfo);
     }
 
-    private function findExistingDevice(User $user, array $deviceInfo)
+    /**
+     * Memperbarui timestamp aktivitas terakhir dari device
+     *
+     * @param User $user Pemilik device
+     * @param string $deviceId ID unik device
+     * @return bool Status keberhasilan update
+     */
+    public function updateLastActive(User $user, string $deviceId): bool
     {
         return UserDevice::where('user_id', $user->id)
-            ->where('device_type', $deviceInfo['device_type'])
-            ->where('platform', $deviceInfo['platform'])
-            ->where('browser', $deviceInfo['browser'])
-            ->first();
+            ->where('device_id', $deviceId)
+            ->update(['last_active' => Carbon::now()]);
     }
 
-
-    private function getDeviceInfo()
+    /**
+     * Memeriksa apakah device diizinkan untuk login
+     * Mempertimbangkan device limit dan status payment registration
+     *
+     * @param User $user User yang akan login
+     * @return bool Status izin login
+     */
+    public function canDeviceLogin(User $user): bool
     {
-        $deviceType = 'unknown';
-        if ($this->agent->isDesktop()) {
-            $deviceType = 'desktop';
-        } elseif ($this->agent->isPhone()) {
-            $deviceType = 'phone';
-        } elseif ($this->agent->isTablet()) {
-            $deviceType = 'tablet';
+        if ($this->isPaymentRegistration) {
+            return true;
         }
 
+        if ($this->isExistingDeviceActive($user)) {
+            return true;
+        }
+
+        $deviceInfo = $this->getDeviceInfo();
+        if ($this->findExistingDevice($user, $deviceInfo)) {
+            return true;
+        }
+
+        return $this->hasAvailableDeviceSlot($user);
+    }
+
+    /**
+     * Mendapatkan jumlah maksimal device yang diizinkan untuk user
+     *
+     * @param User $user User yang dicek
+     * @return int Jumlah maksimal device
+     */
+    private function getMaxDevices(User $user): int
+    {
+        if ($this->isPaymentRegistration && !is_null($this->paymentPlanMaxDevices)) {
+            return $this->paymentPlanMaxDevices;
+        }
+
+        $currentPlan = $user->getCurrentPlan();
+        return $currentPlan ? $currentPlan->max_devices : 0;
+    }
+
+    /**
+     * Mengumpulkan informasi device dari Agent
+     *
+     * @return array Informasi device (type, platform, browser, dll)
+     */
+    private function getDeviceInfo(): array
+    {
+        $deviceType = $this->determineDeviceType();
         $platform = $this->agent->platform();
         $browser = $this->agent->browser();
 
@@ -89,74 +160,149 @@ class DeviceService
         ];
     }
 
-    private function generateDeviceName($deviceType, $platform, $browser)
+    /**
+     * Menentukan tipe device berdasarkan deteksi Agent
+     *
+     * @return string Tipe device (desktop/phone/tablet/unknown)
+     */
+    private function determineDeviceType(): string
     {
-        return sprintf(
-            '%s - %s (%s)',
-            ucfirst($deviceType),
-            $platform,
-            $browser
-        );
+        if ($this->agent->isDesktop()) {
+            return self::DEVICE_TYPES['desktop'];
+        }
+
+        if ($this->agent->isPhone()) {
+            return self::DEVICE_TYPES['phone'];
+        }
+
+        if ($this->agent->isTablet()) {
+            return self::DEVICE_TYPES['tablet'];
+        }
+
+        return self::DEVICE_TYPES['unknown'];
     }
 
-    public function deactivateExcessDevices(User $user)
+    /**
+     * Membuat nama device yang readable berdasarkan informasi device
+     *
+     * @param string $deviceType Tipe device
+     * @param string $platform Platform/OS
+     * @param string $browser Browser yang digunakan
+     * @return string Nama device yang readable
+     */
+    private function generateDeviceName(string $deviceType, string $platform, string $browser): string
+    {
+        return sprintf('%s - %s (%s)', ucfirst($deviceType), $platform, $browser);
+    }
+
+    /**
+     * Mencari device yang sudah ada berdasarkan karakteristik device
+     *
+     * @param User $user Pemilik device
+     * @param array $deviceInfo Informasi device
+     * @return UserDevice|null Device yang ditemukan atau null
+     */
+    private function findExistingDevice(User $user, array $deviceInfo): ?UserDevice
+    {
+        return UserDevice::where('user_id', $user->id)
+            ->where('device_type', $deviceInfo['device_type'])
+            ->where('platform', $deviceInfo['platform'])
+            ->where('browser', $deviceInfo['browser'])
+            ->first();
+    }
+
+    /**
+     * Mengaktifkan device yang sudah ada dan memperbarui last_active
+     *
+     * @param UserDevice $device Device yang akan diaktifkan
+     * @return UserDevice Device yang sudah diaktifkan
+     */
+    private function activateExistingDevice(UserDevice $device): UserDevice
+    {
+        $device->update([
+            'is_active' => true,
+            'last_active' => Carbon::now()
+        ]);
+
+        session(['device_id' => $device->device_id]);
+        return $device;
+    }
+
+    /**
+     * Membuat record device baru di database
+     *
+     * @param User $user Pemilik device
+     * @param array $deviceInfo Informasi device
+     * @return UserDevice Device yang baru dibuat
+     */
+    private function createNewDevice(User $user, array $deviceInfo): UserDevice
+    {
+        $deviceId = Str::random(32);
+
+        $device = UserDevice::create([
+            'user_id' => $user->id,
+            'device_name' => $deviceInfo['device_name'],
+            'device_id' => $deviceId,
+            'device_type' => $deviceInfo['device_type'],
+            'platform' => $deviceInfo['platform'],
+            'platform_version' => $deviceInfo['platform_version'],
+            'browser' => $deviceInfo['browser'],
+            'browser_version' => $deviceInfo['browser_version'],
+            'last_active' => Carbon::now(),
+            'is_active' => true
+        ]);
+
+        session(['device_id' => $deviceId]);
+        return $device;
+    }
+
+    /**
+     * Menonaktifkan device yang melebihi batas maksimal
+     * Device yang paling lama tidak aktif akan dinonaktifkan
+     *
+     * @param User $user Pemilik device
+     */
+    private function deactivateExcessDevices(User $user): void
     {
         $maxDevices = $user->getCurrentPlan()->max_devices;
-        $activeDevices = $user->devices()->where('is_active', true)
+        $activeDevices = $user->devices()
+            ->where('is_active', true)
             ->orderBy('last_active', 'desc')
             ->get();
 
         if ($activeDevices->count() >= $maxDevices) {
-            // Nonaktifkan device paling lama tidak aktif
-            $devicesToDeactivate = $activeDevices->slice($maxDevices - 1);
-            foreach ($devicesToDeactivate as $device) {
-                $device->update(['is_active' => false]);
-            }
+            $activeDevices->slice($maxDevices - 1)
+                ->each(fn($device) => $device->update(['is_active' => false]));
         }
     }
 
-    private function generateDeviceId()
+    /**
+     * Memeriksa apakah device yang tersimpan di session masih aktif
+     *
+     * @param User $user Pemilik device
+     * @return bool Status keaktifan device
+     */
+    private function isExistingDeviceActive(User $user): bool
     {
-        return Str::random(32);
-    }
-
-    public function updateLastActive(User $user, $deviceId)
-    {
-        return UserDevice::where('user_id', $user->id)
-            ->where('device_id', $deviceId)
-            ->update(['last_active' => now()]);
-    }
-
-    public function canDeviceLogin(User $user, $request)
-    {
-        $currentPlan = $user->getCurrentPlan();
-
-        if (!$currentPlan) {
+        if (!session('device_id')) {
             return false;
         }
 
-        // Jika sudah ada device_id di session, berarti device ini sudah teregistrasi
-        if (session('device_id')) {
-            $device = UserDevice::where('user_id', $user->id)
-                ->where('device_id', session('device_id'))
-                ->where('is_active', true)
-                ->first();
+        return UserDevice::where('user_id', $user->id)
+            ->where('device_id', session('device_id'))
+            ->where('is_active', true)
+            ->exists();
+    }
 
-            if ($device) {
-                return true;
-            }
-        }
-
-        // Cek device dengan karakteristik yang sama
-        $deviceInfo = $this->getDeviceInfo();
-        $existingDevice = $this->findExistingDevice($user, $deviceInfo);
-
-        if ($existingDevice) {
-            return true;
-        }
-
-        // Jika device baru, cek jumlah device aktif
-        $maxDevices = $currentPlan->max_devices;
+    /**
+     * Memeriksa apakah masih ada slot device yang tersedia
+     *
+     * @param User $user User yang dicek
+     * @return bool Status ketersediaan slot
+     */
+    private function hasAvailableDeviceSlot(User $user): bool
+    {
+        $maxDevices = $this->getMaxDevices($user);
         $activeDevices = $user->devices()->where('is_active', true)->count();
 
         return $activeDevices < $maxDevices;

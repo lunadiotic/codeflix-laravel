@@ -3,4 +3,4 @@
 use App\Http\Controllers\TransactionController;
 use Illuminate\Support\Facades\Route;
 
-Route::post('/payment/callback', [TransactionController::class, 'callback'])->name('payment.callback');
+Route::post('/transaction/payment/callback', [TransactionController::class, 'callback'])->name('transaction.payment.callback');

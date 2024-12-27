@@ -27,7 +27,11 @@ Route::get('/subcription/subscribe/success', [SubscribeController::class, 'subsc
 Route::get('/subcription/subscribe/{plan}', [SubscribeController::class, 'checkoutPlan'])->name('subscription.checkout');
 Route::post('/subcription/subscribe', [SubscribeController::class, 'subscribe'])->name('subscription.subscribe');
 
-Route::post('/checkout', [TransactionController::class, 'checkout'])->name('checkout');
+Route::post('/transaction/checkout', [TransactionController::class, 'checkout'])->name('checkout');
+
+Route::post('/transaction/success', [TransactionController::class, 'handleSuccess'])
+    ->name('transaction.success.handler')
+    ->middleware(['auth']);
 
 Route::get('/test-expired', function () {
     $membership = Membership::find(1);
